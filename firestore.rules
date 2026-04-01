@@ -1,0 +1,106 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required, immutable) - user ID
+    //   - email: string (optional, immutable) - user email
+    //   - phoneNumber: string (optional, immutable) - user phone number
+    //   - displayName: string (optional) - user name
+    //   - firstName: string (optional) - first name
+    //   - lastName: string (optional) - last name
+    //   - bio: string (optional) - user bio
+    //   - photoURL: string (optional) - user photo
+    //   - subscriptionStatus: string (optional) - subscription level
+    //   - notificationSettings: map (optional) - notification preferences
+    //   - createdAt: timestamp (required, immutable) - creation time
+    //
+    // Collection: resumes
+    // Document ID: {resumeId}
+    // Fields:
+    //   - userId: string (required, immutable) - user ID
+    //   - content: string (required) - resume content
+    //   - targetJob: string (required) - target job description
+    //   - createdAt: timestamp (required, immutable) - creation time
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Domain Validators
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'createdAt']) &&
+             data.uid is string &&
+             data.createdAt is timestamp &&
+             (!('email' in data) || (data.email is string && isValidEmail(data.email))) &&
+             (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() < 20)) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 1000)) &&
+             (!('firstName' in data) || (data.firstName is string && data.firstName.size() < 100)) &&
+             (!('lastName' in data) || (data.lastName is string && data.lastName.size() < 100)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() < 1000)) &&
+             (!('subscriptionStatus' in data) || (data.subscriptionStatus in ['free', 'basic', 'pro'])) &&
+             (!('notificationSettings' in data) || (data.notificationSettings is map));
+    }
+
+    function isValidResume(data) {
+      return hasRequiredFields(['userId', 'content', 'targetJob', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.content is string && data.content.size() < 100000 &&
+             data.targetJob is string && data.targetJob.size() < 50000 &&
+             data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && uidUnchanged();
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(userId);
+      
+      match /matched_jobs/{jobId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId); // For demo purposes, allowing client to write. In production, sidecar backend writes this using Admin SDK.
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /resumes/{resumeId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidResume(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && isValidResume(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

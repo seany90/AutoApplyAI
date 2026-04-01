@@ -1,0 +1,5 @@
+{
+  "name": "AutoApply AI",
+  "description": "An automated AI job application platform with smart matching, resume generation, and interview coaching.",
+  "requestFramePermissions": ["microphone", "camera"]
+}
