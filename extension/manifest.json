@@ -1,38 +1,25 @@
 {
   "manifest_version": 3,
-  "name": "AutoApply AI Copilot",
+  "name": "Auto-Apply AI Assistant",
   "version": "1.0",
-  "description": "AI Copilot for AutoApply. Injects cover letters and answers into job applications.",
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
+  "description": "AI-powered job application assistant for LinkedIn and Indeed.",
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
-    "<all_urls>"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
+    "https://www.linkedin.com/*",
+    "https://www.indeed.com/*",
+    "https://*.googleapis.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
+    "default_icon": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/jobs/*", "https://www.indeed.com/viewjob*"],
+      "js": ["content.js"]
     }
-  },
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
-  },
-  "externally_connectable": {
-    "matches": ["*://*.run.app/*", "*://localhost/*"]
+  ],
+  "background": {
+    "service_worker": "background.js"
   }
 }

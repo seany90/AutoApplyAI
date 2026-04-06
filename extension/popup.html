@@ -1,66 +1,90 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>AutoApply Copilot</title>
   <style>
     body {
-      width: 250px;
-      padding: 15px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: #f8fafc;
-      color: #0f172a;
-      margin: 0;
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
     }
     h2 {
+      font-size: 18px;
       margin-top: 0;
-      font-size: 16px;
-      color: #4f46e5;
+      color: #818cf8;
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    p {
-      font-size: 13px;
-      color: #475569;
-      line-height: 1.4;
+    .field {
+      margin-bottom: 16px;
     }
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      background-color: #dcfce7;
-      color: #166534;
-      border-radius: 4px;
+    label {
+      display: block;
       font-size: 12px;
       font-weight: 600;
-      margin-top: 10px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .status::before {
-      content: "";
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background-color: #16a34a;
-      border-radius: 50%;
+    input, textarea {
+      width: 100%;
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px;
+      color: white;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 120px;
+      resize: none;
+    }
+    button {
+      width: 100%;
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #4338ca;
+    }
+    .status {
+      font-size: 11px;
+      margin-top: 12px;
+      text-align: center;
+      color: #64748b;
+    }
+    .success {
+      color: #10b981;
     }
   </style>
 </head>
 <body>
-  <h2>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="20" height="20" style="vertical-align: middle;">
-      <rect width="128" height="128" rx="32" fill="#4f46e5"/>
-      <rect x="36" y="48" width="56" height="40" rx="8" fill="none" stroke="white" stroke-width="8"/>
-      <path d="M48 32v16h16" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
-      <path d="M24 68h12M92 68h12" stroke="white" stroke-width="8" stroke-linecap="round"/>
-      <circle cx="52" cy="68" r="6" fill="white"/>
-      <circle cx="76" cy="68" r="6" fill="white"/>
-    </svg>
-    AutoApply Copilot
-  </h2>
-  <p>The extension is active and waiting for commands from your dashboard.</p>
-  <p>When you click "Copilot Apply", this extension will open the job and inject your AI-generated answers.</p>
-  <div class="status">Ready</div>
+  <h2>✨ Auto-Apply AI</h2>
+  
+  <div class="field">
+    <label>Gemini API Key</label>
+    <input type="password" id="apiKey" placeholder="Enter your API key...">
+  </div>
+  
+  <div class="field">
+    <label>Source of Truth Profile (JSON)</label>
+    <textarea id="profile" placeholder='{"fullName": "John Doe", ...}'></textarea>
+  </div>
+  
+  <button id="saveBtn">Save & Sync</button>
+  
+  <div id="status" class="status">Settings saved locally.</div>
+
+  <script src="popup.js"></script>
 </body>
 </html>

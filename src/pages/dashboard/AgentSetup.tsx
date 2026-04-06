@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, Save, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, FileSearch, Sparkles } from "lucide-react";
+import { Bot, Save, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, FileSearch, Sparkles, Zap, Terminal, Download, Puzzle, Link, Play, ArrowRight, Shield, Copy } from "lucide-react";
 import { auth, db } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getGemini } from "@/lib/gemini";
@@ -13,7 +13,7 @@ export default function AgentSetup() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [activeTab, setActiveTab] = useState<'profile' | 'evaluator'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'evaluator' | 'automation'>('profile');
 
   // Evaluator State
   const [jobDescription, setJobDescription] = useState("");
@@ -207,9 +207,20 @@ export default function AgentSetup() {
           <FileSearch className="w-4 h-4" />
           Job Evaluator
         </button>
+        <button
+          onClick={() => setActiveTab('automation')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'automation' 
+              ? 'bg-indigo-600 text-white' 
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+          }`}
+        >
+          <Zap className="w-4 h-4" />
+          Automation Hub
+        </button>
       </div>
 
-      {activeTab === 'profile' ? (
+      {activeTab === 'profile' && (
         <div className="grid gap-6">
           {/* Personal Info */}
           <Card className="bg-slate-900/50 border-slate-800">
@@ -323,6 +334,16 @@ export default function AgentSetup() {
 
           {/* Save Button */}
           <div className="flex items-center justify-end gap-4 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(profile, null, 2));
+                alert("Profile JSON copied to clipboard! Paste this into the Extension popup.");
+              }}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            >
+              <Copy className="w-4 h-4 mr-2" /> Export to Extension
+            </Button>
             {saveStatus === 'success' && (
               <span className="text-emerald-400 flex items-center text-sm"><CheckCircle2 className="w-4 h-4 mr-1" /> Saved successfully</span>
             )}
@@ -334,7 +355,9 @@ export default function AgentSetup() {
             </Button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'evaluator' && (
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Input Section */}
           <Card className="bg-slate-900/50 border-slate-800 h-fit">
@@ -427,6 +450,104 @@ export default function AgentSetup() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'automation' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="bg-slate-900/50 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-50 flex items-center gap-2">
+                <Puzzle className="w-5 h-5 text-blue-400" />
+                The Execution Engine: Browser Extension
+              </CardTitle>
+              <CardDescription>
+                In production, we use a secure Chrome Extension. This keeps your data safe, uses your existing browser session (no need to share passwords), and requires zero technical setup.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Steps */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Step 1 */}
+                <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-4 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <Download className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-200">1. Install Source</h4>
+                    <p className="text-sm text-slate-400 mt-2">Download the extension source code and load it into Chrome via Developer Mode.</p>
+                  </div>
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-auto"
+                    onClick={() => {
+                      alert("To install:\n1. Open chrome://extensions\n2. Enable 'Developer Mode'\n3. Click 'Load unpacked'\n4. Select the '/extension' folder in this project.");
+                    }}
+                  >
+                    Installation Guide
+                  </Button>
+                </div>
+                {/* Step 2 */}
+                <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-4 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Link className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-200">2. Sync Profile</h4>
+                    <p className="text-sm text-slate-400 mt-2">Copy your Profile JSON from the first tab and paste it into the extension popup.</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 mt-auto"
+                    onClick={() => setActiveTab('profile')}
+                  >
+                    Go to Profile
+                  </Button>
+                </div>
+                {/* Step 3 */}
+                <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-4 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
+                  <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center">
+                    <Play className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-200">3. Auto-Apply</h4>
+                    <p className="text-sm text-slate-400 mt-2">Go to LinkedIn. The extension will add a magic "Auto-Apply" button to job listings.</p>
+                  </div>
+                  <Button variant="outline" className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 mt-auto" onClick={() => window.open('https://www.linkedin.com/jobs/', '_blank')}>
+                    Open LinkedIn <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* How it works section */}
+              <div className="p-6 rounded-xl bg-slate-900 border border-slate-800">
+                <h3 className="text-lg font-medium text-slate-200 mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-emerald-400" />
+                  Why this is secure & user-friendly
+                </h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3 text-sm text-slate-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <span><strong>No technical setup:</strong> Users just click "Install" like any other browser extension. No Python, no terminals.</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-sm text-slate-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <span><strong>Zero password sharing:</strong> The extension runs inside your active browser session. You never give us your LinkedIn password or session cookies.</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-sm text-slate-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <span><strong>Sandboxed execution:</strong> Chrome enforces strict security policies. The extension can only read the job description and fill out forms when you explicitly allow it.</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-sm text-slate-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <span><strong>Human-in-the-loop:</strong> You can review the AI-generated answers before the extension clicks "Submit", ensuring high quality applications.</span>
+                  </li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         </div>
