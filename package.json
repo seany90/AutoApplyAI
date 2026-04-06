@@ -25,6 +25,7 @@
     "@radix-ui/react-toast": "^1.2.15",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "apify-client": "^2.22.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",

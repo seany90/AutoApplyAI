@@ -8,20 +8,29 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://*.linkedin.com/*",
-    "https://*.indeed.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://*.linkedin.com/*", "https://*.indeed.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   },
   "externally_connectable": {
     "matches": ["*://*.run.app/*", "*://localhost/*"]

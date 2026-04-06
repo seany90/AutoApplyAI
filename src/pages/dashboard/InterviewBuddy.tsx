@@ -28,7 +28,7 @@ export default function InterviewBuddy() {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
         chatRef.current = ai.chats.create({
-          model: "gemini-3.1-pro-preview",
+          model: "gemini-3-flash-preview",
           config: {
             systemInstruction: `You are an expert technical interviewer and hiring manager at Stripe interviewing a candidate for a Senior React Developer role. 
             The candidate's resume highlights: Led migration from Redux to Zustand, built payment flow using Stripe Elements, mentored 3 junior developers. 

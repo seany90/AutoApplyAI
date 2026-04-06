@@ -57,8 +57,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       banner.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
       banner.style.fontFamily = 'sans-serif';
       banner.innerHTML = `
-        <h3 style="margin:0 0 5px 0;font-size:16px;">🤖 AI Copilot Active</h3>
-        <p style="margin:0;font-size:14px;">Answers injected. Please review and click Submit.</p>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="20" height="20">
+            <rect width="128" height="128" rx="32" fill="white"/>
+            <rect x="36" y="48" width="56" height="40" rx="8" fill="none" stroke="#4f46e5" stroke-width="8"/>
+            <path d="M48 32v16h16" fill="none" stroke="#4f46e5" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M24 68h12M92 68h12" stroke="#4f46e5" stroke-width="8" stroke-linecap="round"/>
+            <circle cx="52" cy="68" r="6" fill="#4f46e5"/>
+            <circle cx="76" cy="68" r="6" fill="#4f46e5"/>
+          </svg>
+          <h3 style="margin:0;font-size:16px;color:white;">AutoApply Copilot Active</h3>
+        </div>
+        <p style="margin:0;font-size:14px;color:white;">Answers injected. Please review and click Submit.</p>
       `;
       document.body.appendChild(banner);
       

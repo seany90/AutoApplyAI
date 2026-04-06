@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
-  ListChecks, 
-  Send, 
   MessageSquare, 
   Wrench, 
   GraduationCap,
@@ -21,8 +19,7 @@ export default function DashboardLayout() {
 
   const navItems = [
     { path: "/dashboard/overview", icon: <LayoutDashboard className="w-5 h-5" />, label: "Overview" },
-    { path: "/dashboard/queue", icon: <ListChecks className="w-5 h-5" />, label: "Review Queue" },
-    { path: "/dashboard/applications", icon: <Send className="w-5 h-5" />, label: "Applications" },
+    { path: "/dashboard/agent-setup", icon: <Bot className="w-5 h-5" />, label: "Auto-Apply Agent" },
     { path: "/dashboard/interview-buddy", icon: <MessageSquare className="w-5 h-5" />, label: "Interview Buddy" },
     { path: "/dashboard/power-tools", icon: <Wrench className="w-5 h-5" />, label: "Power Tools" },
     { path: "/dashboard/learning-lab", icon: <GraduationCap className="w-5 h-5" />, label: "Learning Lab" },
@@ -111,13 +108,6 @@ export default function DashboardLayout() {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Agent Active: Scanning Jobs
-            </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <button className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors relative">

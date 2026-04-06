@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Linkedin, Languages, Mail, DollarSign, Shield, ArrowRight } from "lucide-react";
+import { Linkedin, Languages, Mail, DollarSign, Shield, ArrowRight, Bot, Zap } from "lucide-react";
 import ResumeOptimizer from "@/components/ResumeOptimizer";
 import PrivacyVault from "@/components/PrivacyVault";
 import FormatTranslator from "@/components/FormatTranslator";

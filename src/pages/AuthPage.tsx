@@ -14,6 +14,7 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber
 } from "@/firebase";
+import { OAuthProvider } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 declare global {
@@ -41,18 +42,7 @@ export default function AuthPage() {
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
-        return;
-      }
-      if (event.data?.type === 'LINKEDIN_AUTH_SUCCESS') {
-        setIsLoading(false);
-        navigate("/onboarding");
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    // Removed GitHub/LinkedIn listeners as we are using Email/Google now
   }, [navigate]);
 
   const handleGoogleLogin = async () => {
@@ -85,33 +75,6 @@ export default function AuthPage() {
       navigate("/onboarding");
     } catch (error: any) {
       console.error("Google login error:", error);
-      setErrorMsg(error.message);
-      setIsLoading(false);
-    }
-  };
-
-  const handleLinkedInLogin = async () => {
-    setIsLoading(true);
-    setErrorMsg(null);
-    try {
-      const response = await fetch('/api/auth/linkedin/url');
-      if (!response.ok) {
-        throw new Error('Failed to get LinkedIn auth URL');
-      }
-      const { url } = await response.json();
-
-      const authWindow = window.open(
-        url,
-        'oauth_popup',
-        'width=600,height=700'
-      );
-
-      if (!authWindow) {
-        setErrorMsg('Please allow popups for this site to connect your account.');
-        setIsLoading(false);
-      }
-    } catch (error: any) {
-      console.error('LinkedIn OAuth error:', error);
       setErrorMsg(error.message);
       setIsLoading(false);
     }
@@ -270,15 +233,6 @@ export default function AuthPage() {
                 </svg>
               )}
               Continue with Google
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full h-12 bg-[#0A66C2] border-[#0A66C2] text-white hover:bg-[#004182] hover:text-white" 
-              onClick={handleLinkedInLogin}
-              disabled={isLoading}
-            >
-              {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Linkedin className="w-5 h-5 mr-2" />}
-              Connect LinkedIn
             </Button>
           </div>
 

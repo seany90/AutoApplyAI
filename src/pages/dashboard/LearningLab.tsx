@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GraduationCap, Send, Loader2, BookOpen, FileText, HelpCircle, TrendingUp, Search, RefreshCw, Maximize2, Minimize2, Copy, Edit2, Check } from "lucide-react";
-import { GoogleGenAI } from "@google/genai";
+import { getGemini } from "@/lib/gemini";
 import ReactMarkdown from "react-markdown";
 
 const prompts = [
@@ -70,9 +70,9 @@ export default function LearningLab() {
 
   const initChat = () => {
     if (!chatRef.current) {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const ai = getGemini();
       chatRef.current = ai.chats.create({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         config: {
           systemInstruction: "You are an expert tutor and learning coach. Your goal is to help the user learn complex topics quickly and effectively using proven learning frameworks like the Feynman technique, spaced repetition, and active recall. Format your responses using Markdown for readability (bolding, lists, code blocks if necessary). Be encouraging but rigorous.",
         }

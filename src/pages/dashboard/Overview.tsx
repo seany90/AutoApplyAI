@@ -17,7 +17,7 @@ export default function Overview() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Dashboard</h1>
-        <p className="text-slate-400">Here's what your agent has been up to this week.</p>
+        <p className="text-slate-400">Here's an overview of your job search progress.</p>
       </div>
 
       {/* Stats Grid */}

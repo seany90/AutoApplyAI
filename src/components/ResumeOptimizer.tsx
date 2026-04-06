@@ -45,7 +45,7 @@ export default function ResumeOptimizer({ onBack }: { onBack: () => void }) {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
       });
 

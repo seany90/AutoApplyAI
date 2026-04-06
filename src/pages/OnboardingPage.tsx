@@ -3,14 +3,45 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Upload, FileText, CheckCircle2, ChevronRight, Briefcase, MapPin, DollarSign, Target, Loader2, AlertCircle, X, Linkedin, ShieldAlert } from "lucide-react";
 import { auth, db } from "@/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, addDoc, collection, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import mammoth from "mammoth";
 import { getGemini } from "@/lib/gemini";
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
 export default function OnboardingPage() {
   const ai = getGemini();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -18,16 +49,41 @@ export default function OnboardingPage() {
   const [matchScore, setMatchScore] = useState(85);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState<string>("");
   const [showSecurityAlert, setShowSecurityAlert] = useState(false);
   const [securityAlertMessage, setSecurityAlertMessage] = useState("");
   const [fileToValidate, setFileToValidate] = useState<File | null>(null);
+  const [isMultipleLocations, setIsMultipleLocations] = useState(false);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [preferences, setPreferences] = useState({
     roles: "",
     location: "",
     minSalary: ""
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
+
+  const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        tenantId: auth.currentUser?.tenantId,
+        providerInfo: auth.currentUser?.providerData.map(provider => ({
+          providerId: provider.providerId,
+          displayName: provider.displayName,
+          email: provider.email,
+          photoUrl: provider.photoURL
+        })) || []
+      },
+      operationType,
+      path
+    }
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  }
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -41,19 +97,44 @@ export default function OnboardingPage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
-        return;
-      }
+      const isTrusted = origin === window.location.origin || origin.endsWith('.run.app') || origin.includes('localhost');
+      
+      if (!isTrusted) return;
+
       if (event.data?.type === 'LINKEDIN_AUTH_SUCCESS') {
+        console.log("[LinkedIn Onboarding] Success message received via postMessage.");
         setIsLoading(false);
         // Simulate generating a resume file from LinkedIn profile data
         const mockResume = new File(["LinkedIn Profile Data"], "LinkedIn_Profile_Resume.pdf", { type: "application/pdf" });
         setUploadedFile(mockResume);
         setErrorMsg(null);
+      } else if (event.data?.type === 'LINKEDIN_AUTH_ERROR') {
+        console.error("[LinkedIn Onboarding] Error message received via postMessage:", event.data.error);
+        setIsLoading(false);
+        setErrorMsg(event.data.error || "LinkedIn authentication failed.");
       }
     };
+
+    // BroadcastChannel for more reliable communication
+    const bc = new BroadcastChannel('linkedin_auth');
+    bc.onmessage = (event) => {
+      console.log("[LinkedIn Onboarding] Received message via BroadcastChannel:", event.data);
+      if (event.data?.type === 'LINKEDIN_AUTH_SUCCESS') {
+        setIsLoading(false);
+        const mockResume = new File(["LinkedIn Profile Data"], "LinkedIn_Profile_Resume.pdf", { type: "application/pdf" });
+        setUploadedFile(mockResume);
+        setErrorMsg(null);
+      } else if (event.data?.type === 'LINKEDIN_AUTH_ERROR') {
+        setIsLoading(false);
+        setErrorMsg(event.data.error || "LinkedIn authentication failed.");
+      }
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      bc.close();
+    };
   }, []);
 
   const handleLinkedInImport = async () => {
@@ -168,9 +249,11 @@ export default function OnboardingPage() {
       if (result.sensitiveFound) {
         setSecurityAlertMessage(result.message);
         setFileToValidate(file);
+        setResumeText(contents.parts[0].text || ""); // Store the text
         setShowSecurityAlert(true);
       } else {
         setUploadedFile(file);
+        setResumeText(contents.parts[0].text || ""); // Store the text
       }
     } catch (error: any) {
       console.error("Error scanning resume:", error);
@@ -192,20 +275,67 @@ export default function OnboardingPage() {
       
       if (step === 1) {
         // In a real app, you'd upload the file to Firebase Storage here
-        // For now, we'll just mark that a resume was provided
-        await updateDoc(userRef, {
-          hasResume: !!uploadedFile,
-          resumeName: uploadedFile?.name || null
-        });
-      } else if (step === 2) {
-        await updateDoc(userRef, {
-          preferences: {
-            roles: preferences.roles,
-            location: preferences.location,
-            minSalary: preferences.minSalary,
-            matchScore: matchScore
+        // For now, we'll just mark that a resume was provided and save the text
+        let userSnap;
+        try {
+          userSnap = await getDoc(userRef);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${auth.currentUser.uid}`);
+          return;
+        }
+
+        try {
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              uid: auth.currentUser.uid,
+              hasResume: !!uploadedFile,
+              resumeName: uploadedFile?.name || null,
+              createdAt: serverTimestamp(),
+              subscriptionStatus: 'free'
+            });
+          } else {
+            const data = userSnap.data();
+            await setDoc(userRef, {
+              uid: auth.currentUser.uid,
+              hasResume: !!uploadedFile,
+              resumeName: uploadedFile?.name || null,
+              createdAt: data.createdAt || serverTimestamp()
+            }, { merge: true });
           }
-        });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}`);
+        }
+
+        if (resumeText) {
+          try {
+            await addDoc(collection(db, "resumes"), {
+              userId: auth.currentUser.uid,
+              content: resumeText,
+              fileName: uploadedFile?.name || "resume.txt",
+              targetJob: "General", 
+              createdAt: serverTimestamp()
+            });
+          } catch (error) {
+            handleFirestoreError(error, OperationType.CREATE, "resumes");
+          }
+        }
+      } else if (step === 2) {
+        try {
+          const finalLocation = isMultipleLocations && selectedLocations.length > 0 
+            ? selectedLocations.join(", ") 
+            : preferences.location;
+            
+          await updateDoc(userRef, {
+            preferences: {
+              roles: preferences.roles,
+              location: finalLocation,
+              minSalary: preferences.minSalary,
+              matchScore: matchScore
+            }
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
+        }
       }
 
       if (step < 3) setStep(step + 1);
@@ -446,16 +576,52 @@ export default function OnboardingPage() {
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" /> Location
-                    </label>
-                    <Input 
-                      placeholder="e.g. Remote, New York" 
-                      className="h-14 bg-slate-950 border-slate-800 text-white text-lg rounded-xl" 
-                      value={preferences.location}
-                      onChange={(e) => setPreferences({...preferences, location: e.target.value})}
-                    />
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <MapPin className="w-4 h-4" /> Location
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="multiple-locations" className="text-xs text-slate-400 cursor-pointer">Multiple Locations</Label>
+                        <Switch 
+                          id="multiple-locations" 
+                          checked={isMultipleLocations} 
+                          onCheckedChange={setIsMultipleLocations} 
+                          className="data-[state=checked]:bg-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    
+                    {isMultipleLocations ? (
+                      <div className="flex flex-wrap gap-2 p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                        {["Singapore", "UK", "USA", "Australia", "Europe"].map(loc => (
+                          <button
+                            key={loc}
+                            onClick={() => {
+                              if (selectedLocations.includes(loc)) {
+                                setSelectedLocations(selectedLocations.filter(l => l !== loc));
+                              } else {
+                                setSelectedLocations([...selectedLocations, loc]);
+                              }
+                            }}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              selectedLocations.includes(loc) 
+                                ? "bg-indigo-600 text-white border border-indigo-500" 
+                                : "bg-slate-900 text-slate-400 border border-slate-700 hover:bg-slate-800"
+                            }`}
+                          >
+                            {loc}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <Input 
+                        placeholder="e.g. Remote, New York" 
+                        className="h-14 bg-slate-950 border-slate-800 text-white text-lg rounded-xl" 
+                        value={preferences.location}
+                        onChange={(e) => setPreferences({...preferences, location: e.target.value})}
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">

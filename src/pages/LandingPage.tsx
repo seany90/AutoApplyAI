@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
-import { Bot, Zap, Shield, LineChart, BrainCircuit, Menu, X, Play } from "lucide-react";
+import { Bot, Zap, Shield, LineChart, BrainCircuit, Menu, X, Play, Linkedin } from "lucide-react";
 import InstructionalVideoModal from "@/components/InstructionalVideoModal";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +117,11 @@ export default function LandingPage() {
             icon={<Shield className="w-6 h-6 text-emerald-400" />}
             title="Privacy Vault"
             description="Your data is encrypted and never sold. Optional approval queue gives you full control over every application."
+          />
+          <FeatureCard 
+            icon={<Linkedin className="w-6 h-6 text-[#0A66C2]" />}
+            title="LinkedIn Sync"
+            description="Import your profile, skills, and experience directly from LinkedIn. Keep your resume perfectly in sync with your professional profile."
           />
         </div>
       </main>

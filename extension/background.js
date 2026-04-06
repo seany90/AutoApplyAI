@@ -13,6 +13,8 @@ chrome.runtime.onMessageExternal.addListener(
             chrome.tabs.sendMessage(tabId, {
               type: "INJECT_ANSWERS",
               data: { inferredAnswers, coverLetter }
+            }).catch((err) => {
+              console.log("Could not send message to content script.", err);
             });
           }
         });

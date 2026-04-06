@@ -36,6 +36,7 @@ export default function Settings() {
     email: "",
     bio: "",
     subscriptionStatus: "free",
+    linkedInConnected: false,
     notificationSettings: {
       email: true,
       push: true,
@@ -51,6 +52,87 @@ export default function Settings() {
   });
 
   useEffect(() => {
+    const handleAuthSuccess = async (profile?: any) => {
+      console.log("[LinkedIn Settings] Handling success...", profile);
+      setIsLoading(false);
+      setProfile(prev => ({ ...prev, linkedInConnected: true }));
+      if (auth.currentUser) {
+        try {
+          await updateDoc(doc(db, "users", auth.currentUser.uid), { 
+            linkedInConnected: true,
+            linkedInProfile: profile || null
+          });
+          setSuccessMsg("LinkedIn connected successfully!");
+          setTimeout(() => setSuccessMsg(null), 3000);
+          console.log("[LinkedIn Settings] Firestore updated successfully.");
+        } catch (error) {
+          console.error("[LinkedIn Settings] Error updating LinkedIn connection status:", error);
+          setErrorMsg("Failed to update LinkedIn connection status.");
+        }
+      }
+    };
+
+    const handleMessage = async (event: MessageEvent) => {
+      const origin = event.origin;
+      console.log(`[LinkedIn Settings] Received message from origin: ${origin}`, event.data);
+      
+      // Allow messages from the same origin or trusted domains
+      const isTrusted = 
+        origin === window.location.origin || 
+        origin.endsWith('.run.app') || 
+        origin.includes('localhost') ||
+        origin.includes('google.com');
+
+      if (!isTrusted) {
+        // Only log warning if it's not a known internal message (like recaptcha)
+        if (typeof event.data !== 'string' || !event.data.includes('recaptcha')) {
+          console.warn("[LinkedIn Settings] Ignored message from untrusted origin:", origin);
+        }
+        return;
+      }
+      
+      if (event.data?.type === 'LINKEDIN_AUTH_SUCCESS') {
+        console.log("[LinkedIn Settings] Success message received via postMessage.");
+        handleAuthSuccess(event.data.profile);
+      } else if (event.data?.type === 'LINKEDIN_AUTH_ERROR') {
+        console.error("[LinkedIn Settings] Error message received via postMessage:", event.data.error);
+        setIsLoading(false);
+        setErrorMsg(event.data.error || "LinkedIn authentication failed.");
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'linkedin_auth_success') {
+        console.log("[LinkedIn Settings] Detected success via storage event.");
+        const profileStr = localStorage.getItem('linkedin_profile');
+        const profile = profileStr ? JSON.parse(profileStr) : undefined;
+        handleAuthSuccess(profile);
+        localStorage.removeItem('linkedin_auth_success');
+      }
+    };
+
+    // BroadcastChannel for more reliable communication
+    const bc = new BroadcastChannel('linkedin_auth');
+    bc.onmessage = (event) => {
+      console.log("[LinkedIn Settings] Received message via BroadcastChannel:", event.data);
+      if (event.data?.type === 'LINKEDIN_AUTH_SUCCESS') {
+        handleAuthSuccess(event.data.profile);
+      } else if (event.data?.type === 'LINKEDIN_AUTH_ERROR') {
+        setIsLoading(false);
+        setErrorMsg(event.data.error || "LinkedIn authentication failed.");
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+      bc.close();
+    };
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
@@ -63,6 +145,7 @@ export default function Settings() {
               email: user.email || "",
               bio: data.bio || "",
               subscriptionStatus: data.subscriptionStatus || "free",
+              linkedInConnected: data.linkedInConnected || false,
               notificationSettings: data.notificationSettings || {
                 email: true,
                 push: true,
@@ -97,6 +180,7 @@ export default function Settings() {
         firstName: profile.firstName,
         lastName: profile.lastName,
         bio: profile.bio,
+        linkedInConnected: profile.linkedInConnected,
         notificationSettings: profile.notificationSettings
       });
       setSuccessMsg("Profile updated successfully!");
@@ -152,6 +236,66 @@ export default function Settings() {
     }
   };
 
+  const handleLinkedInConnect = async () => {
+    if (profile.linkedInConnected) {
+      // Disconnect
+      setProfile(prev => ({ ...prev, linkedInConnected: false }));
+      if (auth.currentUser) {
+        try {
+          await updateDoc(doc(db, "users", auth.currentUser.uid), { linkedInConnected: false });
+          setSuccessMsg("LinkedIn disconnected.");
+          setTimeout(() => setSuccessMsg(null), 3000);
+        } catch (error) {
+          console.error("Error disconnecting LinkedIn:", error);
+          setErrorMsg("Failed to disconnect LinkedIn.");
+        }
+      }
+      return;
+    }
+
+    // Connect
+    setIsLoading(true);
+    setErrorMsg(null);
+    
+    // Open window synchronously to avoid popup blockers
+    const authWindow = window.open(
+      '',
+      'oauth_popup',
+      'width=600,height=700'
+    );
+
+    if (!authWindow) {
+      setErrorMsg('Please allow popups for this site to connect your account.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/linkedin/url');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get LinkedIn auth URL');
+      }
+      const { url } = await response.json();
+      authWindow.location.href = url;
+
+      // Monitor window closure to reset loading state
+      const checkWindow = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkWindow);
+          // Small delay to allow postMessage/storage events to process first
+          setTimeout(() => setIsLoading(false), 1000);
+          console.log("[LinkedIn Settings] Popup window closed.");
+        }
+      }, 500);
+    } catch (error: any) {
+      console.error('LinkedIn OAuth error:', error);
+      setErrorMsg(error.message);
+      setIsLoading(false);
+      authWindow.close();
+    }
+  };
+
   if (isPageLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -197,6 +341,7 @@ export default function Settings() {
           <SettingsNavButton icon={<CreditCard className="w-5 h-5" />} label="Billing & Plan" />
           <SettingsNavButton icon={<Bell className="w-5 h-5" />} label="Notifications" />
           <SettingsNavButton icon={<Shield className="w-5 h-5" />} label="Privacy & Security" />
+          <SettingsNavButton icon={<User className="w-5 h-5" />} label="Connected Accounts" />
         </div>
 
         {/* Settings Content */}
@@ -401,6 +546,40 @@ export default function Settings() {
                     notificationSettings: {...profile.notificationSettings, marketing: checked}
                   })}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Connected Accounts Section */}
+          <Card className="bg-slate-900/50 border-slate-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <User className="w-5 h-5 text-indigo-400" />
+                Connected Accounts
+              </CardTitle>
+              <CardDescription>Link external accounts to enhance AI capabilities.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-slate-800 bg-slate-950/50">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-[#0A66C2] rounded-lg flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">LinkedIn</h4>
+                    <p className="text-sm text-slate-400">
+                      {profile.linkedInConnected ? "Connected" : "Not connected"}
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  variant={profile.linkedInConnected ? "outline" : "default"}
+                  className={profile.linkedInConnected ? "border-slate-700 text-slate-300" : "bg-[#0A66C2] hover:bg-[#004182] text-white"}
+                  onClick={handleLinkedInConnect}
+                  disabled={isLoading}
+                >
+                  {profile.linkedInConnected ? "Disconnect" : "Connect"}
+                </Button>
               </div>
             </CardContent>
           </Card>
