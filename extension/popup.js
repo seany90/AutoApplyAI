@@ -1,4 +1,4 @@
-// Auto-Apply AI Assistant: Popup Script
+// AutoApply AI Assistant: Popup Script
 // Handles saving and loading settings in the extension popup
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,32 +15,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function showStatus(message, type = 'success') {
+    statusDiv.innerText = message;
+    statusDiv.className = 'status ' + type;
+    setTimeout(() => {
+      statusDiv.innerText = '';
+      statusDiv.className = 'status';
+    }, 3000);
+  }
+
   // Save new settings
   saveBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
     let profile;
     
-    try {
-      profile = JSON.parse(profileInput.value.trim());
-    } catch (e) {
-      statusDiv.innerText = "Error: Invalid JSON format in Profile.";
-      statusDiv.style.color = "#ef4444";
+    if (!apiKey) {
+      showStatus("Error: Please enter a Gemini API Key.", "error");
       return;
     }
 
-    if (!apiKey) {
-      statusDiv.innerText = "Error: Please enter a Gemini API Key.";
-      statusDiv.style.color = "#ef4444";
+    try {
+      const profileText = profileInput.value.trim();
+      if (!profileText) {
+        showStatus("Error: Profile data cannot be empty.", "error");
+        return;
+      }
+      profile = JSON.parse(profileText);
+    } catch (e) {
+      showStatus("Error: Invalid JSON format in Profile.", "error");
       return;
     }
 
     chrome.storage.local.set({ apiKey, profile }, () => {
-      statusDiv.innerText = "✨ Settings saved & synced!";
-      statusDiv.classList.add('success');
-      setTimeout(() => {
-        statusDiv.innerText = "Settings saved locally.";
-        statusDiv.classList.remove('success');
-      }, 3000);
+      showStatus("✨ Settings saved & synced successfully!");
     });
   });
 });
