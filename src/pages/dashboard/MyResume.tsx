@@ -139,10 +139,10 @@ export default function MyResume() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-auto pt-2">
-                      <Button variant="outline" size="sm" className="flex-1 bg-slate-900 border-slate-700 hover:bg-slate-800" onClick={() => downloadPDF(resume)}>
+                      <Button variant="outline" size="sm" className="flex-1 bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white" onClick={() => downloadPDF(resume)}>
                         <FileDown className="w-4 h-4 mr-2" /> PDF
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1 bg-slate-900 border-slate-700 hover:bg-slate-800" onClick={() => downloadDOCX(resume)}>
+                      <Button variant="outline" size="sm" className="flex-1 bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white" onClick={() => downloadDOCX(resume)}>
                         <FileDown className="w-4 h-4 mr-2" /> DOCX
                       </Button>
                     </div>
@@ -185,10 +185,10 @@ export default function MyResume() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-auto pt-2">
-                      <Button variant="outline" size="sm" className="flex-1 bg-slate-900 border-slate-700 hover:bg-slate-800" onClick={() => downloadPDF(resume)}>
+                      <Button variant="outline" size="sm" className="flex-1 bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white" onClick={() => downloadPDF(resume)}>
                         <FileDown className="w-4 h-4 mr-2" /> PDF
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1 bg-slate-900 border-slate-700 hover:bg-slate-800" onClick={() => downloadDOCX(resume)}>
+                      <Button variant="outline" size="sm" className="flex-1 bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white" onClick={() => downloadDOCX(resume)}>
                         <FileDown className="w-4 h-4 mr-2" /> DOCX
                       </Button>
                     </div>
