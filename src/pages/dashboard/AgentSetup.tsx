@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Bot, Save, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, FileSearch, Sparkles, Zap, Terminal, Download, Puzzle, Link, Play, ArrowRight, Shield, Copy, FileText } from "lucide-react";
 import { auth, db } from "@/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { getGemini } from "@/lib/gemini";
 import ReactMarkdown from "react-markdown";
 
@@ -27,6 +27,7 @@ export default function AgentSetup() {
     analysis: string;
     tailoredCoverLetter: string;
     tailoredBullets: string[];
+    fullTailoredResumeText: string;
   } | null>(null);
 
   // Agent State (Source of Truth)
@@ -179,6 +180,7 @@ export default function AgentSetup() {
         ${jobDescription}
         
         Please evaluate the match and generate tailored content.
+        Also, generate a full, plain-text ATS-friendly resume that incorporates these tailored bullets and your Source of Truth profile. Format it cleanly with standard sections (Summary, Experience, Education, Skills).
         Respond ONLY with a valid JSON object matching this exact structure:
         {
           "matchScore": 85,
@@ -187,7 +189,8 @@ export default function AgentSetup() {
           "tailoredBullets": [
             "A tailored resume bullet point highlighting relevant experience.",
             "Another tailored bullet point."
-          ]
+          ],
+          "fullTailoredResumeText": "The complete, plain-text tailored resume."
         }
       `;
       
@@ -200,7 +203,23 @@ export default function AgentSetup() {
       });
       
       if (response.text) {
-        setEvaluationResult(JSON.parse(response.text));
+        const result = JSON.parse(response.text);
+        setEvaluationResult(result);
+
+        if (auth.currentUser && result.fullTailoredResumeText) {
+          try {
+            await addDoc(collection(db, "resumes"), {
+              userId: auth.currentUser.uid,
+              content: result.fullTailoredResumeText,
+              fileName: `Tailored_Resume_${new Date().toISOString().split('T')[0]}.txt`,
+              targetJob: jobDescription.substring(0, 50) + "...", 
+              type: "generated",
+              createdAt: serverTimestamp()
+            });
+          } catch (error) {
+            console.error("Error saving generated resume:", error);
+          }
+        }
       }
     } catch (error) {
       console.error("Error evaluating job:", error);
