@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, Save, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, FileSearch, Sparkles, Zap, Terminal, Download, Puzzle, Link, Play, ArrowRight, Shield, Copy } from "lucide-react";
+import { Bot, Save, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, FileSearch, Sparkles, Zap, Terminal, Download, Puzzle, Link, Play, ArrowRight, Shield, Copy, FileText } from "lucide-react";
 import { auth, db } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getGemini } from "@/lib/gemini";
@@ -13,7 +13,11 @@ export default function AgentSetup() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [activeTab, setActiveTab] = useState<'profile' | 'evaluator' | 'automation'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'import' | 'evaluator'>('profile');
+
+  // Import Resume State
+  const [rawResume, setRawResume] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
 
   // Evaluator State
   const [jobDescription, setJobDescription] = useState("");
@@ -68,6 +72,7 @@ export default function AgentSetup() {
       }
     };
     loadProfile();
+
   }, []);
 
   const handleSave = async () => {
@@ -86,6 +91,76 @@ export default function AgentSetup() {
     }
   };
 
+  const handleImportResume = async () => {
+    if (!rawResume.trim()) return;
+    setIsImporting(true);
+    try {
+      const ai = getGemini();
+      const prompt = `
+        You are an expert resume writer and career coach. I will provide you with the raw text of a resume.
+        Your task is to "Humanize" this resume. Rewrite the bullet points, summaries, and descriptions to make them sound more compelling, natural, and appealing to human recruiters, while still retaining the core skills, metrics, and achievements. Remove robotic ATS keyword-stuffing.
+        
+        Extract this humanized information and format it EXACTLY into this JSON structure.
+        Do not add any extra fields. If a field is missing, leave it as an empty string or empty array.
+        
+        JSON Structure:
+        {
+          "personalInfo": {
+            "fullName": "",
+            "email": "",
+            "phone": "",
+            "location": "",
+            "linkedinUrl": "",
+            "githubUrl": "",
+            "portfolioUrl": ""
+          },
+          "preferences": {
+            "targetRoles": [],
+            "locations": [],
+            "remoteOnly": false,
+            "salaryExpectation": ""
+          },
+          "experience": [
+            { "company": "", "title": "", "startDate": "", "endDate": "", "description": "Use bullet points" }
+          ],
+          "education": [
+            { "school": "", "degree": "", "field": "", "graduationYear": "" }
+          ],
+          "skills": ["skill1", "skill2"]
+        }
+
+        Raw Resume Text:
+        ${rawResume}
+      `;
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+      
+      if (response.text) {
+        const parsedProfile = JSON.parse(response.text);
+        setProfile(parsedProfile);
+        
+        // Save to Firebase
+        if (auth.currentUser) {
+          await setDoc(doc(db, "users", auth.currentUser.uid, "agent", "profile"), parsedProfile);
+        }
+        
+        alert("Resume successfully humanized and imported to your profile!");
+        setActiveTab('profile'); // Switch back to profile tab to see the results
+      }
+    } catch (error) {
+      console.error("Error parsing resume:", error);
+      alert("Failed to parse resume. Please try again.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleEvaluate = async () => {
     if (!jobDescription.trim()) return;
     setIsEvaluating(true);
@@ -94,12 +169,13 @@ export default function AgentSetup() {
       const ai = getGemini();
       const prompt = `
         You are an expert technical recruiter and career coach.
-        I will provide you with my "Source of Truth" profile (JSON) and a Job Description.
+        I will provide you with my "Source of Truth" profile (JSON) and a Job Description (or a link to one).
+        If a link is provided, infer the likely requirements based on the URL or any text provided alongside it, or evaluate based on the text if it's a full description.
         
         My Profile:
         ${JSON.stringify(profile, null, 2)}
         
-        Job Description:
+        Job Description or Link:
         ${jobDescription}
         
         Please evaluate the match and generate tailored content.
@@ -185,7 +261,7 @@ export default function AgentSetup() {
         </p>
       </div>
 
-      <div className="flex p-1 bg-slate-900/50 border border-slate-800 rounded-lg w-fit">
+      <div className="flex flex-wrap gap-2 p-1 bg-slate-900/50 border border-slate-800 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('profile')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -195,6 +271,17 @@ export default function AgentSetup() {
           }`}
         >
           Source of Truth Profile
+        </button>
+        <button
+          onClick={() => setActiveTab('import')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'import' 
+              ? 'bg-indigo-600 text-white' 
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Import Resume
         </button>
         <button
           onClick={() => setActiveTab('evaluator')}
@@ -207,18 +294,39 @@ export default function AgentSetup() {
           <FileSearch className="w-4 h-4" />
           Job Evaluator
         </button>
-        <button
-          onClick={() => setActiveTab('automation')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'automation' 
-              ? 'bg-indigo-600 text-white' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-          }`}
-        >
-          <Zap className="w-4 h-4" />
-          Automation Hub
-        </button>
       </div>
+
+      {activeTab === 'import' && (
+        <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="bg-slate-900/50 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-50">Humanize ATS Resume</CardTitle>
+              <CardDescription>
+                Paste your robotic, keyword-stuffed ATS resume. Our AI will rewrite it to sound more natural, compelling, and appealing to human recruiters, then save it to your profile.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Textarea 
+                placeholder="Paste your resume text here..."
+                value={rawResume}
+                onChange={(e) => setRawResume(e.target.value)}
+                className="bg-slate-950 border-slate-800 min-h-[300px] text-slate-50"
+              />
+              <Button 
+                onClick={handleImportResume} 
+                disabled={isImporting || !rawResume.trim()} 
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {isImporting ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Humanizing Resume...</>
+                ) : (
+                  <><Sparkles className="w-4 h-4 mr-2" /> Humanize & Import Resume</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {activeTab === 'profile' && (
         <div className="grid gap-6">
@@ -334,16 +442,6 @@ export default function AgentSetup() {
 
           {/* Save Button */}
           <div className="flex items-center justify-end gap-4 pt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                navigator.clipboard.writeText(JSON.stringify(profile, null, 2));
-                alert("Profile JSON copied to clipboard! Paste this into the Extension popup.");
-              }}
-              className="border-slate-700 text-slate-300 hover:bg-slate-800"
-            >
-              <Copy className="w-4 h-4 mr-2" /> Export to Extension
-            </Button>
             {saveStatus === 'success' && (
               <span className="text-emerald-400 flex items-center text-sm"><CheckCircle2 className="w-4 h-4 mr-1" /> Saved successfully</span>
             )}
@@ -362,12 +460,12 @@ export default function AgentSetup() {
           {/* Input Section */}
           <Card className="bg-slate-900/50 border-slate-800 h-fit">
             <CardHeader>
-              <CardTitle className="text-slate-50">Job Description</CardTitle>
-              <CardDescription>Paste the job description you want to apply for.</CardDescription>
+              <CardTitle className="text-slate-50">"Paste-a-Link" Analyzer</CardTitle>
+              <CardDescription>Paste a link to the job posting or the full job description.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Textarea 
-                placeholder="Paste the full job description here..."
+                placeholder="Paste the job URL or full description here..."
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 className="bg-slate-950 border-slate-800 min-h-[300px] text-slate-50"
@@ -380,7 +478,7 @@ export default function AgentSetup() {
                 {isEvaluating ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing Match...</>
                 ) : (
-                  <><Sparkles className="w-4 h-4 mr-2" /> Evaluate & Tailor Resume</>
+                  <><Sparkles className="w-4 h-4 mr-2" /> Analyze Job Link</>
                 )}
               </Button>
             </CardContent>
@@ -450,104 +548,6 @@ export default function AgentSetup() {
                   </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {activeTab === 'automation' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Card className="bg-slate-900/50 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-slate-50 flex items-center gap-2">
-                <Puzzle className="w-5 h-5 text-blue-400" />
-                The Execution Engine: Browser Extension
-              </CardTitle>
-              <CardDescription>
-                In production, we use a secure Chrome Extension. This keeps your data safe, uses your existing browser session (no need to share passwords), and requires zero technical setup.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Steps */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Step 1 */}
-                <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-4 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Download className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-200">1. Install Source</h4>
-                    <p className="text-sm text-slate-400 mt-2">Download the extension source code and load it into Chrome via Developer Mode.</p>
-                  </div>
-                  <Button 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-auto"
-                    onClick={() => {
-                      alert("To install:\n1. Open chrome://extensions\n2. Enable 'Developer Mode'\n3. Click 'Load unpacked'\n4. Select the '/extension' folder in this project.");
-                    }}
-                  >
-                    Installation Guide
-                  </Button>
-                </div>
-                {/* Step 2 */}
-                <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-4 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Link className="w-6 h-6 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-200">2. Sync Profile</h4>
-                    <p className="text-sm text-slate-400 mt-2">Copy your Profile JSON from the first tab and paste it into the extension popup.</p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 mt-auto"
-                    onClick={() => setActiveTab('profile')}
-                  >
-                    Go to Profile
-                  </Button>
-                </div>
-                {/* Step 3 */}
-                <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-4 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
-                  <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center">
-                    <Play className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-200">3. Auto-Apply</h4>
-                    <p className="text-sm text-slate-400 mt-2">Go to LinkedIn. The extension will add a magic "Auto-Apply" button to job listings.</p>
-                  </div>
-                  <Button variant="outline" className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 mt-auto" onClick={() => window.open('https://www.linkedin.com/jobs/', '_blank')}>
-                    Open LinkedIn <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* How it works section */}
-              <div className="p-6 rounded-xl bg-slate-900 border border-slate-800">
-                <h3 className="text-lg font-medium text-slate-200 mb-4 flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-emerald-400" />
-                  Why this is secure & user-friendly
-                </h3>
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-3 text-sm text-slate-300">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <span><strong>No technical setup:</strong> Users just click "Install" like any other browser extension. No Python, no terminals.</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-slate-300">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <span><strong>Zero password sharing:</strong> The extension runs inside your active browser session. You never give us your LinkedIn password or session cookies.</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-slate-300">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <span><strong>Sandboxed execution:</strong> Chrome enforces strict security policies. The extension can only read the job description and fill out forms when you explicitly allow it.</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-slate-300">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <span><strong>Human-in-the-loop:</strong> You can review the AI-generated answers before the extension clicks "Submit", ensuring high quality applications.</span>
-                  </li>
-                </ul>
-              </div>
             </CardContent>
           </Card>
         </div>

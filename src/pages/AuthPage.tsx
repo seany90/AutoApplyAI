@@ -72,7 +72,7 @@ export default function AuthPage() {
         });
       }
       
-      navigate("/onboarding");
+      navigate("/app");
     } catch (error: any) {
       console.error("Google login error:", error);
       setErrorMsg(error.message);
@@ -105,7 +105,7 @@ export default function AuthPage() {
           createdAt: serverTimestamp()
         });
       }
-      navigate("/onboarding");
+      navigate("/app");
     } catch (error: any) {
       console.error("Email auth error:", error);
       setErrorMsg(error.message);
@@ -181,7 +181,7 @@ export default function AuthPage() {
         });
       }
 
-      navigate("/onboarding");
+      navigate("/app");
     } catch (error: any) {
       console.error("Verification error:", error);
       if (error.code === 'auth/invalid-verification-code') {
